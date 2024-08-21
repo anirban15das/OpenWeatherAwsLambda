@@ -1,0 +1,112 @@
+name: AWS Lambda CICD
+on:
+  push:
+    branches: [Main]
+env:
+  ACCOUNT_ID: 176651566156
+  REGION: us-east-1
+  LAMBDA_NAME: WeatherLambda
+  LAMBDA_EX_ROLE: lambda-ex
+  TABLE_NAME: WeatherData
+  API_GATEWAY_NAME: MyApi
+  API_INVOKE_ROLE: api-gateway-invoke
+  EVENT_RULE_NAME: MyEventRule
+  STAGE: dev
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Code Checkout
+        uses: actions/checkout@v3
+      - name: Setup Java
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+      - name: Build Project
+        run: mvn clean package
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v3
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.REGION }}
+      - name: Check lambda Ex Role exists
+        id: CheckLambdaExRole
+        run: |
+          echo "Checking Role Exist or not"
+          ROLE_INFO=$(aws iam get-role --role-name $LAMBDA_EX_ROLE --query "Role.RoleId" --output text)
+          echo $ROLE_INFO
+        continue-on-error: true
+      - name: Create lambda Ex Role
+        if: steps.CheckLambdaExRole.outcome != 'success'
+        run: |
+          aws iam create-role --role-name $LAMBDA_EX_ROLE --assume-role-policy-document file://.github/workflows/trust-policy-lambda.json
+          aws iam attach-role-policy --role-name $LAMBDA_EX_ROLE --policy-arn arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+          aws iam attach-role-policy --role-name $LAMBDA_EX_ROLE --policy-arn arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess
+      - name: Check AWS Dynamo DB Table Exists
+        id: CheckDynamoDbTable
+        run: aws dynamodb describe-table --table-name $TABLE_NAME
+        continue-on-error: true
+      - name: Create AWS Dynamo DB Table
+        if: steps.CheckDynamoDbTable.outcome != 'success'
+        run: aws dynamodb create-table --table-name $TABLE_NAME --attribute-definitions AttributeName=id,AttributeType=S --key-schema AttributeName=id,KeyType=HASH --provisioned-throughput ReadCapacityUnits=5,WriteCapacityUnits=5 --table-class STANDARD
+      - name: Update Lambda Function
+        id: UpdateLambda
+        run: aws lambda update-function-code --function-name $LAMBDA_NAME --zip-file fileb://target/OpenWeatherAwsLambda-0.0.1-SNAPSHOT-lambda-package.zip
+        continue-on-error: true
+      - name: Create AWS Lambda Function
+        if: steps.UpdateLambda.outcome != 'success'
+        run: |
+          aws lambda create-function --function-name $LAMBDA_NAME --runtime java17 --handler com.aws.open.weather.StreamLambdaHandler::handleRequest --role arn:aws:iam::$ACCOUNT_ID:role/$LAMBDA_EX_ROLE --zip-file fileb://target/OpenWeatherAwsLambda-0.0.1-SNAPSHOT-lambda-package.zip --timeout 15 --memory-size 512
+      - name: Check Api Gateway
+        id: CheckApiGateWay
+        run: |
+          API_GATEWAY_ID=$(aws apigateway get-rest-apis --query "items[?name=='$API_GATEWAY_NAME'].[id]"  --output text)
+          if [ "$API_GATEWAY_ID" != '' ]; then
+          echo Invoke Api = https://$API_GATEWAY_ID.execute-api.$REGION.amazonaws.com/$STAGE
+          else
+          echo "Api does not exist"
+          fi
+          echo "api_gateway_id=$API_GATEWAY_ID" >> "$GITHUB_OUTPUT"
+        continue-on-error: true
+      - name: Create Api Gateway
+        if: steps.CheckApiGateWay.outputs.api_gateway_id == ''
+        run: |
+          aws apigateway create-rest-api --name $API_GATEWAY_NAME --description "My API description"  --endpoint-configuration types=REGIONAL 
+          API_GATEWAY_ID=$(aws apigateway get-rest-apis --query "items[?name=='$API_GATEWAY_NAME'].[id]"  --output text)
+          echo $API_GATEWAY_ID
+          API_GATEWAY_ROOT_RESOURCE_ID=$(aws apigateway get-resources --rest-api-id $API_GATEWAY_ID --query "items[?path=='/'].[id]" --output text)
+          echo $API_GATEWAY_ROOT_RESOURCE_ID
+          aws apigateway create-resource --rest-api-id $API_GATEWAY_ID --parent-id $API_GATEWAY_ROOT_RESOURCE_ID --path-part "{proxy+}"
+          API_GATEWAY_RESOURCE_ID=$(aws apigateway get-resources --rest-api-id $API_GATEWAY_ID --query "items[?parentId=='$API_GATEWAY_ROOT_RESOURCE_ID'].[id]" --output text)
+          echo $API_GATEWAY_RESOURCE_ID
+          aws apigateway put-method --rest-api-id $API_GATEWAY_ID --resource-id $API_GATEWAY_RESOURCE_ID --http-method ANY --authorization-type NONE
+          aws apigateway put-integration --rest-api-id $API_GATEWAY_ID --resource-id $API_GATEWAY_RESOURCE_ID --http-method ANY --type AWS_PROXY --integration-http-method POST --uri arn:aws:apigateway:$REGION:lambda:path/2015-03-31/functions/arn:aws:lambda:$REGION:$ACCOUNT_ID:function:$LAMBDA_NAME/invocations
+          aws lambda add-permission --function-name $LAMBDA_NAME --statement-id apigateway-all --action lambda:InvokeFunction --principal apigateway.amazonaws.com --source-arn "arn:aws:execute-api:$REGION:$ACCOUNT_ID:$API_GATEWAY_ID/*/*/*"
+          aws apigateway create-deployment --rest-api-id $API_GATEWAY_ID --stage-name $STAGE
+          echo Invoke Api = https://$API_GATEWAY_ID.execute-api.$REGION.amazonaws.com/$STAGE
+      - name: Check Api Invoke Role exists
+        id: CheckApiInvokeRole
+        run: |
+          echo "Checking Role Exist or not"
+          ROLE_INFO=$(aws iam get-role --role-name $API_INVOKE_ROLE --query "Role.RoleId" --output text)
+          echo $ROLE_INFO
+        continue-on-error: true
+      - name: Create Api Invoke Role
+        if: steps.CheckApiInvokeRole.outcome != 'success'
+        run: |
+          aws iam create-role --role-name $API_INVOKE_ROLE --assume-role-policy-document file://.github/workflows/trust-policy-events.json
+          aws iam attach-role-policy --role-name $API_INVOKE_ROLE --policy-arn arn:aws:iam::aws:policy/AmazonAPIGatewayInvokeFullAccess
+      - name: Check Event Bridge
+        id: CheckEventBridge
+        run: aws events describe-rule --name $EVENT_RULE_NAME
+        continue-on-error: true
+      - name: Create Event Bridge
+        if: steps.CheckEventBridge.outcome != 'success'
+        run: |
+          aws events put-rule --name $EVENT_RULE_NAME --schedule-expression 'rate(1 minute)'
+          API_GATEWAY_ID=$(aws apigateway get-rest-apis --query "items[?name=='$API_GATEWAY_NAME'].[id]"  --output text)
+          aws events put-targets --rule $EVENT_RULE_NAME --targets "Id"="1","Arn"="arn:aws:execute-api:$REGION:$ACCOUNT_ID:$API_GATEWAY_ID/$STAGE/*/*","HttpParameters"="{PathParameterValues=[\"weather\"]}","RoleArn"="arn:aws:iam::$ACCOUNT_ID:role/$API_INVOKE_ROLE","Input"="'{\"city\":\"Kolkata\",\"state\":\"WB\",\"countryCode\":\"IN\"}'"
+        
+     
