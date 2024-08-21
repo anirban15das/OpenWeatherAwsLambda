@@ -1,0 +1,2 @@
+# OpenWeatherAwsLambda
+AWS case study
