@@ -14,6 +14,8 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 
+import java.util.UUID;
+
 @Service
 @AllArgsConstructor
 @NoArgsConstructor
@@ -53,6 +55,7 @@ public class LiveWeatherService {
             weather.setHumidity(mainNode.path("humidity").asDouble());
             weather.setFeelsLike(mainNode.path("feels_like").asDouble());
             weather.setWindSpeed(windNode.path("speed").asDouble());
+            weather.setId((UUID.randomUUID().toString()));
         } catch (Exception ex) {
             LOGGER.error("Error while parsing weather response", ex);
         }
