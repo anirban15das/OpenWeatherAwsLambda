@@ -50,8 +50,11 @@ public class LiveWeatherService {
 
         try {
             JsonNode jsonNode = objectMapper.readTree(weatherResp);
+            LOGGER.info("jsonNode : {}", jsonNode.asText());
             JsonNode mainNode = jsonNode.get("main");
+            LOGGER.info("mainNode : {}", mainNode.asText());
             JsonNode windNode = jsonNode.get("wind");
+            LOGGER.info("windNode : {}", windNode.asText());
             weather.setCityName(jsonNode.path("name").asText());
             weather.setTemp(mainNode.path("temp").asDouble());
             weather.setCityId(jsonNode.path("id").asText());
