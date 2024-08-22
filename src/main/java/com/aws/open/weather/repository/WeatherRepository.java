@@ -22,9 +22,10 @@ public class WeatherRepository {
 
     public void create(WeatherData weatherData) {
         try {
+            LOGGER.info("Creating weather data...");
             weatherDataTable.putItem(weatherData);
         }catch (Exception e){
-            LOGGER.error("Exception in saving weather data ex = {}",e);
+            LOGGER.error("Exception in saving weather data ex : {}",e);
             throw new WeatherException("Exception in saving weather data",e);
         }
     }

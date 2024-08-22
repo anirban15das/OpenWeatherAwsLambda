@@ -56,6 +56,7 @@ public class LiveWeatherService {
             weather.setFeelsLike(mainNode.path("feels_like").asDouble());
             weather.setWindSpeed(windNode.path("speed").asDouble());
             weather.setId((UUID.randomUUID().toString()));
+            LOGGER.info("Weather: {}", weather);
         } catch (Exception ex) {
             LOGGER.error("Error while parsing weather response", ex);
         }

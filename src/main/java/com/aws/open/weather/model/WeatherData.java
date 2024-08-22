@@ -11,7 +11,6 @@ import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbParti
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
 @ToString
 @EqualsAndHashCode
 @JsonInclude(JsonInclude.Include.NON_NULL)
@@ -39,8 +38,6 @@ public class WeatherData {
     public String getId() {
         return id;
     }
-
-
 
     public static String tableName(){
         return "WeatherData";
