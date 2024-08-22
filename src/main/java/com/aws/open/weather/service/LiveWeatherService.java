@@ -24,7 +24,7 @@ public class LiveWeatherService {
     private static final Logger LOGGER = LoggerFactory.getLogger(LiveWeatherService.class);
     @Autowired
     private RestClient restClient;
-
+    @Autowired
     private ObjectMapper objectMapper;
 
     @Autowired
