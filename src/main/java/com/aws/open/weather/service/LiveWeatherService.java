@@ -1,6 +1,7 @@
 package com.aws.open.weather.service;
 
 
+import com.aws.open.weather.exception.WeatherException;
 import com.aws.open.weather.model.WeatherData;
 import com.aws.open.weather.repository.WeatherRepository;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -22,6 +23,7 @@ import java.util.UUID;
 public class LiveWeatherService {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(LiveWeatherService.class);
+
     @Autowired
     private RestClient restClient;
     @Autowired
@@ -31,7 +33,7 @@ public class LiveWeatherService {
     private WeatherRepository weatherRepository;
 
 
-    public WeatherData getWeatherByCity(String city) {
+    public WeatherData getWeatherByCity(String city) throws WeatherException {
         WeatherData weather = new WeatherData();
         String weatherResp = restClient.get()
                 .uri(uriBuilder -> uriBuilder
@@ -45,28 +47,20 @@ public class LiveWeatherService {
                 .toEntity(String.class)
                 .getBody();
 
-        LOGGER.info("Weather of City : {}",city);
         LOGGER.info("WeatherDataResp: {}", weatherResp);
 
         try {
             JsonNode jsonNode = objectMapper.readTree(weatherResp);
-            LOGGER.info("jsonNode : {}", jsonNode.asText());
             JsonNode mainNode = jsonNode.get("main");
-            LOGGER.info("mainNode : {}", mainNode.asText());
             JsonNode windNode = jsonNode.get("wind");
-            LOGGER.info("windNode : {}", windNode.asText());
             weather.setCityName(jsonNode.path("name").asText());
             weather.setTemp(mainNode.path("temp").asDouble());
             weather.setCityId(jsonNode.path("id").asText());
-            LOGGER.info("WeatherData : {}", weather);
             weather.setPressure(mainNode.path("pressure").asDouble());
             weather.setHumidity(mainNode.path("humidity").asDouble());
-            LOGGER.info("WeatherData : {}", weather);
             weather.setFeelsLike(mainNode.path("feels_like").asDouble());
             weather.setWindSpeed(windNode.path("speed").asDouble());
-            LOGGER.info("WeatherData : {}", weather);
             weather.setId((UUID.randomUUID().toString()));
-            LOGGER.info("WeatherData : {}", weather);
         } catch (Exception ex) {
             LOGGER.error("Error while parsing weather response", ex);
         }

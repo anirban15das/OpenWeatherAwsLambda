@@ -1,5 +1,6 @@
 package com.aws.open.weather.controller;
 
+import com.aws.open.weather.exception.WeatherException;
 import com.aws.open.weather.model.WeatherData;
 import com.aws.open.weather.service.LiveWeatherService;
 import lombok.AllArgsConstructor;
@@ -27,7 +28,7 @@ public class LiveWeatherController {
 
     @SneakyThrows
     @GetMapping
-    public ResponseEntity<WeatherData> getWeatherByCity(@RequestParam(name = "q") String city){
+    public ResponseEntity<WeatherData> getWeatherByCity(@RequestParam(name = "q") String city) throws WeatherException {
         LOGGER.info("Get Weather for City : {} ",city);
         return ResponseEntity.ok(liveWeatherService.getWeatherByCity(city));
     }
