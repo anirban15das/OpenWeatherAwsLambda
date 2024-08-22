@@ -55,10 +55,13 @@ public class LiveWeatherService {
             weather.setCityName(jsonNode.path("name").asText());
             weather.setTemp(mainNode.path("temp").asDouble());
             weather.setCityId(jsonNode.path("id").asText());
+            LOGGER.info("WeatherData : {}", weather);
             weather.setPressure(mainNode.path("pressure").asDouble());
             weather.setHumidity(mainNode.path("humidity").asDouble());
+            LOGGER.info("WeatherData : {}", weather);
             weather.setFeelsLike(mainNode.path("feels_like").asDouble());
             weather.setWindSpeed(windNode.path("speed").asDouble());
+            LOGGER.info("WeatherData : {}", weather);
             weather.setId((UUID.randomUUID().toString()));
             LOGGER.info("WeatherData : {}", weather);
         } catch (Exception ex) {
