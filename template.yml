@@ -29,7 +29,7 @@ Resources:
   weatherLambda:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: 'weatherLambda'
+      FunctionName: 'WeatherLambda'
       CodeUri: .
       MemorySize: 512
       Timeout: 15
@@ -44,14 +44,14 @@ Resources:
             - Effect: Allow
               Action:
                 - logs:CreateLogGroup
-              Resource: arn:aws:logs:us-east-1:517903332927:*
+              Resource: arn:aws:logs:us-east-1:176651566156:*
             - Effect: Allow
               Action:
                 - logs:CreateLogStream
                 - logs:PutLogEvents
               Resource:
                 - >-
-                  arn:aws:logs:us-east-1:517903332927:log-group:/aws/lambda/weatherLambda:*
+                  arn:aws:logs:us-east-1:176651566156:log-group:/aws/lambda/weatherLambda:*
             - Action:
                 - dynamodb:*
                 - dax:*
@@ -148,6 +148,6 @@ Resources:
 
 Outputs:
   MainFunction:
-    Description: "weatherLambda Lambda Function ARN"
-    Value: !GetAtt weatherLambda.Arn
+    Description: "WeatherLambda Lambda Function ARN"
+    Value: !GetAtt WeatherLambda.Arn
 
