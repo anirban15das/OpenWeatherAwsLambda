@@ -44,6 +44,10 @@ public class LiveWeatherService {
                 .retrieve()
                 .toEntity(String.class)
                 .getBody();
+
+        LOGGER.info("Weather of City : {}",city);
+        LOGGER.info("WeatherDataResp: {}", weatherResp);
+
         try {
             JsonNode jsonNode = objectMapper.readTree(weatherResp);
             JsonNode mainNode = jsonNode.get("main");
@@ -56,7 +60,7 @@ public class LiveWeatherService {
             weather.setFeelsLike(mainNode.path("feels_like").asDouble());
             weather.setWindSpeed(windNode.path("speed").asDouble());
             weather.setId((UUID.randomUUID().toString()));
-            LOGGER.info("Weather: {}", weather);
+            LOGGER.info("WeatherData : {}", weather);
         } catch (Exception ex) {
             LOGGER.error("Error while parsing weather response", ex);
         }
